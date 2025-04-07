@@ -10,11 +10,11 @@ sub entry {
     my $name = shift;
     print ".global $name\n";
     print "${name}:\n";
-    print " li a7, SYS_${name}\n";
-    print " ecall\n";
+    print " li a7, SYS_${name}\n"; # $$ li is like mov in x86
+    print " ecall\n"; # $$ like init 0x80 to move to kernel
     print " ret\n";
 }
-	
+# $$ if i need to do a new system call i should add him an entry
 entry("fork");
 entry("exit");
 entry("wait");

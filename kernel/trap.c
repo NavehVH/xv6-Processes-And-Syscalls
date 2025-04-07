@@ -6,6 +6,9 @@
 #include "proc.h"
 #include "defs.h"
 
+
+// $$ looking for the right system call and call it
+// $$ all traps are getting here
 struct spinlock tickslock;
 uint ticks;
 

@@ -10,6 +10,9 @@
         # a page boundary.
         #
 
+        # $$ where we have context switch from user to kernel
+        # $$ save the registers in the user space (like PC, SP, etc) and save them in trapframe
+
 #include "riscv.h"
 #include "memlayout.h"
 
@@ -97,6 +100,7 @@ uservec:
         # jump to usertrap(), which does not return
         jr t0
 
+# ?? take from the trapframe all the reigsters and return the user to its original mode and data
 .globl userret
 userret:
         # userret(pagetable)

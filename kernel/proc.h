@@ -1,4 +1,6 @@
 // Saved registers for kernel context switches.
+
+// $$ does some data structure for each process
 struct context {
   uint64 ra;
   uint64 sp;
@@ -83,7 +85,7 @@ enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
 // Per-process state
 struct proc {
-  struct spinlock lock;
+  struct spinlock lock; //$$ busy wait lock
 
   // p->lock must be held when using these:
   enum procstate state;        // Process state

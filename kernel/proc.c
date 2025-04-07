@@ -121,7 +121,7 @@ allocproc(void)
   }
   return 0;
 
-found:
+found: //$$ vars when creating a process with the value i want at start
   p->pid = allocpid();
   p->state = USED;
 
@@ -587,16 +587,17 @@ kill(int pid)
 {
   struct proc *p;
 
-  for(p = proc; p < &proc[NPROC]; p++){
-    acquire(&p->lock);
-    if(p->pid == pid){
-      p->killed = 1;
+  for(p = proc; p < &proc[NPROC]; p++){ //loop all processes
+    acquire(&p->lock); //im going to play with this process so i need to catch the lock of this process
+    if(p->pid == pid){ //got the proc i needed
+      p->killed = 1;  //change the flag of kill to 1 (next time when the os will want to use this proc, it will see flag kill as 1 and will kill it)
+      //(can see it happened in trap.c)
       if(p->state == SLEEPING){
-        // Wake process from sleep().
+        // Wake process from sleep(). (so we wont have a deadlock or something)
         p->state = RUNNABLE;
       }
-      release(&p->lock);
-      return 0;
+      release(&p->lock); //release the lock
+      return 0; 
     }
     release(&p->lock);
   }
