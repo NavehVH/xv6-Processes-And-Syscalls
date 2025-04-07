@@ -85,7 +85,7 @@ enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
 // Per-process state
 struct proc {
-  struct spinlock lock; //$$ busy wait lock
+  struct spinlock lock; //$$ busy wait lock    
 
   // p->lock must be held when using these:
   enum procstate state;        // Process state
@@ -102,7 +102,7 @@ struct proc {
   uint64 sz;                   // Size of process memory (bytes)
   pagetable_t pagetable;       // User page table
   struct trapframe *trapframe; // data page for trampoline.S
-  struct context context;      // swtch() here to run process
+  struct context context;      // swtch() here to run process $$ sorta like trapframe but with specific registers
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)

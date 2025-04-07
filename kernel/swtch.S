@@ -3,6 +3,7 @@
 #   void swtch(struct context *old, struct context *new);
 # 
 # Save current registers in old. Load from new.	
+# $$ save registers to a0, load registers from a1
 
 
 .globl swtch
@@ -22,7 +23,7 @@ swtch:
         sd s10, 96(a0)
         sd s11, 104(a0)
 
-        ld ra, 0(a1)
+        ld ra, 0(a1) # $$ return address, where we return when we do ret
         ld sp, 8(a1)
         ld s0, 16(a1)
         ld s1, 24(a1)

@@ -126,9 +126,9 @@ found: //$$ vars when creating a process with the value i want at start
   p->state = USED;
 
   // Allocate a trapframe page.
-  if((p->trapframe = (struct trapframe *)kalloc()) == 0){
+  if((p->trapframe = (struct trapframe *)kalloc()) == 0){ 
     freeproc(p);
-    release(&p->lock);
+    release(&p->lock);  
     return 0;
   }
 
@@ -276,6 +276,7 @@ growproc(int n)
 
 // Create a new process, copying the parent.
 // Sets up child kernel stack to return as if from fork() system call.
+//$$ gets us from new -> ready state
 int
 fork(void)
 {
@@ -284,7 +285,7 @@ fork(void)
   struct proc *p = myproc();
 
   // Allocate process.
-  if((np = allocproc()) == 0){
+  if((np = allocproc()) == 0){ //$$ searching for unused proc
     return -1;
   }
 
@@ -296,11 +297,11 @@ fork(void)
   }
   np->sz = p->sz;
 
-  // copy saved user registers.
+  // copy saved user registers. $$ trapframe
   *(np->trapframe) = *(p->trapframe);
 
   // Cause fork to return 0 in the child.
-  np->trapframe->a0 = 0;
+  np->trapframe->a0 = 0; //$$ a0 is the return value
 
   // increment reference counts on open file descriptors.
   for(i = 0; i < NOFILE; i++)
@@ -441,30 +442,31 @@ wait(uint64 addr)
 //  - swtch to start running that process.
 //  - eventually that process transfers control
 //    via swtch back to the scheduler.
+// $$ from RUNNABLE -> READY
 void
 scheduler(void)
 {
   struct proc *p;
-  struct cpu *c = mycpu();
+  struct cpu *c = mycpu(); //$$ scheduler for every CPU
   
   c->proc = 0;
   for(;;){
     // Avoid deadlock by ensuring that devices can interrupt.
-    intr_on();
+    intr_on(); //$$ interrupt?
 
-    for(p = proc; p < &proc[NPROC]; p++) {
-      acquire(&p->lock);
+    for(p = proc; p < &proc[NPROC]; p++) { //$$ run on all the procs
+      acquire(&p->lock); //$$ everytime we get to a proc we caught his lock and release in the end
       if(p->state == RUNNABLE) {
         // Switch to chosen process.  It is the process's job
         // to release its lock and then reacquire it
         // before jumping back to us.
         p->state = RUNNING;
         c->proc = p;
-        swtch(&c->context, &p->context);
-
+        swtch(&c->context, &p->context); //we switch from the scheduler context to the proc context
+        //$$ ra takes us back here after the swtch end
         // Process is done running for now.
         // It should have changed its p->state before coming back.
-        c->proc = 0;
+        c->proc = 0; //$$ define proc to be 0
       }
       release(&p->lock);
     }
@@ -482,19 +484,19 @@ void
 sched(void)
 {
   int intena;
-  struct proc *p = myproc();
+  struct proc *p = myproc(); //$$ get current proc
 
-  if(!holding(&p->lock))
-    panic("sched p->lock");
-  if(mycpu()->noff != 1)
+  if(!holding(&p->lock)) //$$ we dont hold the proc lock
+    panic("sched p->lock"); //$$ drop the OS! Doesn't suppose to happened.
+  if(mycpu()->noff != 1) //$$ we hold more than 1 lock
     panic("sched locks");
   if(p->state == RUNNING)
     panic("sched running");
-  if(intr_get())
+  if(intr_get()) //$$ are we allowing interrupts?
     panic("sched interruptible");
 
-  intena = mycpu()->intena;
-  swtch(&p->context, &mycpu()->context);
+  intena = mycpu()->intena; //$$ interrupt enabled
+  swtch(&p->context, &mycpu()->context); //$$ call swtch to the cpu context
   mycpu()->intena = intena;
 }
 
@@ -504,7 +506,7 @@ yield(void)
 {
   struct proc *p = myproc();
   acquire(&p->lock);
-  p->state = RUNNABLE;
+  p->state = RUNNABLE; //$$ change state to runnable
   sched();
   release(&p->lock);
 }
@@ -532,8 +534,11 @@ forkret(void)
 
 // Atomically release lock and sleep on chan.
 // Reacquires lock when awakened.
-void
-sleep(void *chan, struct spinlock *lk)
+//$$ RUNNING -> BLOCKED
+//$$ will look on all the procs in *chan channel and will wake them
+//$$ reminder: in java its release -> sleep -> acquire (happens here also)
+void  
+sleep(void *chan, struct spinlock *lk) 
 {
   struct proc *p = myproc();
   
@@ -563,13 +568,14 @@ sleep(void *chan, struct spinlock *lk)
 
 // Wake up all processes sleeping on chan.
 // Must be called without any p->lock.
+//$$ loop all procs, search for a sleeping proc with the channel provided. SLEEP -> RUNNABLE
 void
 wakeup(void *chan)
 {
   struct proc *p;
 
   for(p = proc; p < &proc[NPROC]; p++) {
-    if(p != myproc()){
+    if(p != myproc()){ //$$ dont want to wakeup myself, avoid deadlock
       acquire(&p->lock);
       if(p->state == SLEEPING && p->chan == chan) {
         p->state = RUNNABLE;
