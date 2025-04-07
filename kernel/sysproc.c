@@ -71,9 +71,9 @@ sys_sleep(void)
 uint64
 sys_kill(void)
 {
-  int pid;
+  int pid; //the arg pid
 
-  argint(0, &pid);
+  argint(0, &pid); //get arg value
   return kill(pid);
 }
 
