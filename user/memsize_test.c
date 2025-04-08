@@ -10,7 +10,7 @@ int main(int argc, char** argv) {
     void* buf = malloc(20 * 1024);
     if (!buf) {
         printf("Memory allocation failed\n");
-        exit(1);
+        exit(1, "");
     }
 
     //(c)
@@ -24,5 +24,5 @@ int main(int argc, char** argv) {
     int after_free = memsize();
     printf("After free: %d bytes\n", after_free);
 
-    exit(0);
+    exit(0, "");
 }

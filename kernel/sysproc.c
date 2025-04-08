@@ -10,8 +10,14 @@ uint64
 sys_exit(void)
 {
   int n;
+  char msg[32];
+
   argint(0, &n);
-  exit(n);
+
+  // Try to get second argument (exit message)
+  argstr(1, msg, sizeof(msg));
+
+  exit(n, msg);  // Call updated exit() with message
   return 0;  // not reached
 }
 
@@ -30,9 +36,15 @@ sys_fork(void)
 uint64
 sys_wait(void)
 {
-  uint64 p;
+  uint64 p;         // status pointer (int*)
+  uint64 msgaddr;   // message pointer (char*)
+
   argaddr(0, &p);
-  return wait(p);
+
+  // Try to get second argument (message buffer)
+  argaddr(1, &msgaddr);
+
+  return wait(p, msgaddr);  // Call updated wait()
 }
 
 uint64

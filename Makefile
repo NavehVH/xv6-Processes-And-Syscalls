@@ -118,6 +118,7 @@ mkfs/mkfs: mkfs/mkfs.c $K/fs.h $K/param.h
 UPROGS=\
 	$U/_helloworld\
 	$U/_memsize_test\
+	$U/_goodbye\
 	$U/_cat\
 	$U/_echo\
 	$U/_forktest\
