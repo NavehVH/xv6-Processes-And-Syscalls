@@ -23,6 +23,8 @@ char* sbrk(int);
 int sleep(int);
 int uptime(void);
 int memsize(void); //added
+int forkn(int n, int* pids);
+int waitall(int*, int*);
 
 // ulib.c
 int stat(const char*, struct stat*);

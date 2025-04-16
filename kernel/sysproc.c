@@ -34,6 +34,19 @@ sys_fork(void)
 }
 
 uint64
+sys_forkn(void)
+{
+  int n;
+  uint64 pids_addr;
+
+  argint(0, &n);
+  argaddr(1, &pids_addr);
+
+  return forkn(n, pids_addr);
+}
+
+
+uint64
 sys_wait(void)
 {
   uint64 p;         // status pointer (int*)
@@ -45,6 +58,18 @@ sys_wait(void)
   argaddr(1, &msgaddr);
 
   return wait(p, msgaddr);  // Call updated wait()
+}
+
+uint64
+sys_waitall(void)
+{
+  uint64 n_addr;
+  uint64 statuses_addr;
+
+  argaddr(0, &n_addr);
+  argaddr(1, &statuses_addr);
+
+  return waitall(n_addr, statuses_addr);
 }
 
 uint64
