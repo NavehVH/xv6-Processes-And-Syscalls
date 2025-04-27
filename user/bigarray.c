@@ -3,27 +3,40 @@
 #include "user/user.h"
 
 #define SIZE (1 << 16)
-#define PARTS 4
 
 int arr[SIZE];
-int pids[PARTS];
+int pids[NPROC];
 
-int main() {
+int main()
+{
+  int PARTS = 4;
+
   // Initialize array
   for (int i = 0; i < SIZE; i++)
     arr[i] = i;
 
+  if (PARTS == 0)
+  {
+    printf("0 forks, exiting cleanly.\n");
+    printf("Final total = 0\n");
+    exit(0, "");
+  }
+
   int which = forkn(PARTS, pids);
-  if (which < 0) {
+  if (which < 0)
+  {
     fprintf(2, "forkn failed\n");
     exit(1, "");
   }
 
-  if (which > 0) {
-    // Child process
-    int start = (which - 1) * (SIZE / PARTS);
-    int end = which * (SIZE / PARTS);
+  int chunk = SIZE / PARTS;
+
+  if (which > 0)
+  {
+    int start = (which - 1) * chunk;
+    int end = which * chunk;
     int sum = 0;
+
     for (int i = start; i < end; i++)
       sum += arr[i];
 
@@ -33,7 +46,8 @@ int main() {
 
   // Parent process
   printf("Created children with PIDs: ");
-  for (int i = 0; i < PARTS; i++) {
+  for (int i = 0; i < PARTS; i++)
+  {
     printf("%d ", pids[i]);
   }
   printf("\n");
@@ -41,7 +55,8 @@ int main() {
   int count;
   int statuses[NPROC];
 
-  if (waitall(&count, statuses) < 0) {
+  if (waitall(&count, statuses) < 0)
+  {
     fprintf(2, "waitall failed\n");
     exit(1, "");
   }

@@ -352,7 +352,7 @@ int forkn(int n, uint64 pids_addr)
     if (uvmcopy(p->pagetable, np->pagetable, p->sz) < 0)
     {
       freeproc(np);
-      release(&np->lock); // 💥 Needed!
+      release(&np->lock);
       goto error;
     }
 
