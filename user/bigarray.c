@@ -15,6 +15,7 @@ int main()
   for (int i = 0; i < SIZE; i++)
     arr[i] = i;
 
+  //edge case 0 forking
   if (PARTS == 0)
   {
     printf("0 forks, exiting cleanly.\n");
@@ -22,49 +23,44 @@ int main()
     exit(0, "");
   }
 
-  int which = forkn(PARTS, pids);
-  if (which < 0)
+  int who_am_i = forkn(PARTS, pids);
+  // unsuccessful fork
+  if (who_am_i < 0)
   {
     fprintf(2, "forkn failed\n");
     exit(1, "");
   }
 
-  int chunk = SIZE / PARTS;
+  int workpart = SIZE / PARTS; // depends on how many children were created 
 
-  if (which > 0)
+  //child process
+  if (who_am_i > 0)
   {
-    int start = (which - 1) * chunk;
-    int end = which * chunk;
+    int start = (who_am_i - 1) * workpart;
+    int end = who_am_i * workpart;
     int sum = 0;
 
     for (int i = start; i < end; i++)
       sum += arr[i];
 
-    printf("Child %d (pid=%d) computed sum = %d\n", which, getpid(), sum);
+    printf("Child num %d : pid %d , sum = %d\n", who_am_i, getpid(), sum);
     exit(sum, "");
   }
 
   // Parent process
-  printf("Created children with PIDs: ");
-  for (int i = 0; i < PARTS; i++)
-  {
-    printf("%d ", pids[i]);
-  }
-  printf("\n");
-
   int count;
   int statuses[NPROC];
 
   if (waitall(&count, statuses) < 0)
   {
-    fprintf(2, "waitall failed\n");
+    fprintf(2, "waitall failed\n"); // error msg
     exit(1, "");
   }
-
+  // children done so the parent shows final sum 
   int total = 0;
   for (int i = 0; i < count; i++)
     total += statuses[i];
-
+  printf("All children done\n");
   printf("Final total = %d\n", total);
   exit(0, "");
 }

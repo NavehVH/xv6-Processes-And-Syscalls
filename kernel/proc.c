@@ -333,13 +333,15 @@ int fork(void)
   return pid;
 }
 
+//task 4 - forkn implementation
+
 int forkn(int n, uint64 pids_addr)
 {
-  struct proc *p = myproc();
-  struct proc *children[16];
   int pids[16];
   int i;
-
+  struct proc *p = myproc();
+  struct proc *children[16];
+  
   if (n < 1 || n > 16)
     return -1;
 
@@ -347,26 +349,50 @@ int forkn(int n, uint64 pids_addr)
   {
     struct proc *np;
     if ((np = allocproc()) == 0)
-      goto error;
-
+    {
+      for (int j = 0; j < i; j++)
+      {
+        struct proc *c = children[j];
+        acquire(&c->lock);
+        freeproc(c);
+        release(&c->lock);
+      }
+      return -1;
+    }
+      
+    // Copy user memory from parent to child.
     if (uvmcopy(p->pagetable, np->pagetable, p->sz) < 0)
     {
       freeproc(np);
       release(&np->lock);
-      goto error;
+
+      for (int j = 0; j < i; j++)
+      {
+        struct proc *c = children[j];
+        acquire(&c->lock);
+        freeproc(c);
+        release(&c->lock);
+      }
+      return -1;
     }
 
     np->sz = p->sz;
+
+  // copy saved user registers. $$ trapframe
     *(np->trapframe) = *(p->trapframe);
+
+    // for the children we return number of that process in relation to the fork operation
     np->trapframe->a0 = i + 1;
 
+  // increment reference counts on open file descriptors.
     for (int fd = 0; fd < NOFILE; fd++)
       if (p->ofile[fd])
         np->ofile[fd] = filedup(p->ofile[fd]);
-
     np->cwd = idup(p->cwd);
+
     safestrcpy(np->name, p->name, sizeof(p->name));
 
+    // setting the parent
     acquire(&wait_lock);
     np->parent = p;
     release(&wait_lock);
@@ -379,8 +405,19 @@ int forkn(int n, uint64 pids_addr)
   }
 
   // Copy to user-space
-  if (copyout(p->pagetable, pids_addr, (char *)pids, n * sizeof(int)) < 0)
-    goto error;
+  if (copyout(p->pagetable, pids_addr, (char *)pids, n * sizeof(int)) < 0){
+    //
+    for (int j = 0; j < i; j++)
+    {
+      struct proc *c = children[j];
+      acquire(&c->lock);
+      freeproc(c);
+      release(&c->lock);
+    }
+    return -1;
+  }
+
+    
 
   // Mark children as RUNNABLE
   for (int j = 0; j < n; j++)
@@ -392,16 +429,6 @@ int forkn(int n, uint64 pids_addr)
   }
 
   return 0;
-
-error:
-  for (int j = 0; j < i; j++)
-  {
-    struct proc *c = children[j];
-    acquire(&c->lock);
-    freeproc(c);
-    release(&c->lock);
-  }
-  return -1;
 }
 
 // Pass p's abandoned children to init.
@@ -457,17 +484,19 @@ void exit(int status, char *msg)
   acquire(&p->lock);
 
   p->xstate = status;
+  p->state = ZOMBIE;
+
+  //added in task 3
   if (msg)
   {
-    strncpy(p->exit_msg, msg, sizeof(p->exit_msg));
-    p->exit_msg[sizeof(p->exit_msg) - 1] = '\0'; // ensure null-termination
+    safestrcpy(p->exit_msg, msg, sizeof(p->exit_msg));
   }
   else
   {
     p->exit_msg[0] = '\0';
   }
 
-  p->state = ZOMBIE;
+  
 
   release(&wait_lock);
 
@@ -509,13 +538,13 @@ int wait(uint64 addr, uint64 msg_addr)
             release(&wait_lock);
             return -1;
           }
-
-          if (msg_addr != 0)
+            // added in the task 3
+            // may assume that wait is always called with a valid, non-null (0) string pointer
+          if (msg_addr != 0 && copyout(p->pagetable, msg_addr, pp->exit_msg, strlen(pp->exit_msg) + 1) < 0)
           {
-            if (copyout(p->pagetable, msg_addr, pp->exit_msg, strlen(pp->exit_msg) + 1) < 0)
-            {
-              pid = -1;
-            }
+            release(&pp->lock);
+            release(&wait_lock);
+            return -1;
           }
 
           freeproc(pp);
@@ -541,62 +570,70 @@ int wait(uint64 addr, uint64 msg_addr)
 
 int waitall(uint64 n_addr, uint64 statuses_addr)
 {
+  int statuses[NPROC];
+  int counter = 0;
   struct proc *p = myproc();
   struct proc *pp;
-  int statuses[NPROC];
-  int count = 0;
+  
   acquire(&wait_lock);
 
   for (;;)
   {
+     // Scan through table looking for exited children.
     int havekids = 0;
     int all_zombie = 1;
 
-    // First pass: check if all children are ZOMBIE (or none exist)
+    // first pass: check if all children are ZOMBIE (or none exist)
     for (pp = proc; pp < &proc[NPROC]; pp++)
     {
       if (pp->parent == p)
       {
+        
         havekids = 1;
 
         acquire(&pp->lock);
+        // at least one is not done — need to sleep
         if (pp->state != ZOMBIE)
         {
           all_zombie = 0;
           release(&pp->lock);
-          break; // at least one is not done — need to sleep
+          break; 
         }
         release(&pp->lock);
       }
     }
 
-    if (!havekids)
-    {
+    // none exist children
+    if (!havekids){
       release(&wait_lock);
-      return 0; // no children
+      return 0; 
     }
 
+    // Still have running children
     if (!all_zombie)
     {
-      // Still have running children
       sleep(p, &wait_lock);
       continue;
     }
 
-    // Second pass: all children are ZOMBIE — collect them
+    // Second pass: all children are ZOMBIES so we collect them
     for (pp = proc; pp < &proc[NPROC]; pp++)
     {
       if (pp->parent == p)
       {
         acquire(&pp->lock);
+
+        // technically it should be a zombie since we already know all the children are zombies so its a safety check
         if (pp->state == ZOMBIE)
         {
-          statuses[count] = pp->xstate;
-          printf("collected child PID=%d with status=%d\n", pp->pid, pp->xstate);
+          int xstate = pp->xstate;
+          statuses[counter] = xstate;
+          printf("collected zombie child with pid=%d\n", pp->pid);
           freeproc(pp);
           release(&pp->lock);
-          count++;
+          counter++;
         }
+
         else
         {
           release(&pp->lock);
@@ -604,15 +641,17 @@ int waitall(uint64 n_addr, uint64 statuses_addr)
       }
     }
 
-    // Done: copy count and statuses to user
-    if (copyout(p->pagetable, n_addr, (char *)&count, sizeof(int)) < 0 ||
-        copyout(p->pagetable, statuses_addr, (char *)statuses, count * sizeof(int)) < 0)
+    // copy count and statuses to user at the end 
+    // we always try to pass the count and children statuses
+    if (copyout(p->pagetable, n_addr, (char *)&counter, sizeof(int)) < 0 ||
+        copyout(p->pagetable, statuses_addr, (char *)statuses, counter * sizeof(int)) < 0) 
     {
       release(&wait_lock);
       return -1;
     }
 
     release(&wait_lock);
+    // operation successful
     return 0;
   }
 }
